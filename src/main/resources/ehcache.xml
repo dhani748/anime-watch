@@ -1,0 +1,35 @@
+<config
+    xmlns:xsi='http://www.w3.org/2001/XMLSchema-instance'
+    xmlns='http://www.ehcache.org/v3'
+    xsi:schemaLocation="http://www.ehcache.org/v3 http://www.ehcache.org/schema/ehcache-core-3.10.xsd">
+
+    <persistence directory="./cache-data"/>
+
+    <cache-template name="default">
+        <expiry>
+            <ttl unit="seconds">300</ttl>
+        </expiry>
+        <heap unit="entries">100</heap>
+    </cache-template>
+
+    <cache alias="trending" uses-template="default">
+        <expiry><ttl unit="seconds">600</ttl></expiry>
+    </cache>
+
+    <cache alias="search" uses-template="default">
+        <expiry><ttl unit="seconds">600</ttl></expiry>
+    </cache>
+
+    <cache alias="seasonal" uses-template="default">
+        <expiry><ttl unit="seconds">600</ttl></expiry>
+    </cache>
+
+    <cache alias="anime" uses-template="default">
+        <expiry><ttl unit="seconds">3600</ttl></expiry>
+    </cache>
+
+    <cache alias="codeCache" uses-template="default">
+        <expiry><ttl unit="seconds">86400</ttl></expiry>
+        <heap unit="entries">50</heap>
+    </cache>
+</config>

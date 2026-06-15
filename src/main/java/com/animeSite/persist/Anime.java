@@ -1,0 +1,63 @@
+package com.animeSite.persist;
+
+import com.animeSite.core.audit.Auditable;
+import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
+
+@Entity
+@Table(name = "anime")
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Schema(description = "Anime entity mapped to the MySQL database")
+public class Anime extends Auditable {
+
+    @Id
+    @Column(length = 36)
+    @Schema(description = "UUID primary key", example = "550e8400-e29b-41d4-a716-446655440000")
+    private UUID id = UUID.randomUUID();
+
+    @Column(unique = true, nullable = false)
+    @Schema(description = "MyAnimeList ID", example = "21")
+    private Integer malId;
+
+    @Column(nullable = false)
+    @Schema(description = "Anime title", example = "One Piece")
+    private String title;
+
+    @Column(columnDefinition = "TEXT")
+    @Schema(description = "Plot synopsis", example = "Monkey D. Luffy sets off on an adventure...")
+    private String synopsis;
+
+    @Schema(description = "Average rating score", example = "8.7")
+    private Double rating;
+
+    @Schema(description = "Number of episodes", example = "24")
+    private Integer episodes;
+
+    @Schema(description = "YouTube trailer URL", example = "https://www.youtube.com/watch?v=...")
+    private String trailerUrl;
+
+    @Schema(description = "Anime poster image URL", example = "https://cdn.myanimelist.net/images/...")
+    private String imageUrl;
+
+    @Schema(description = "Affiliate / referral link (manually set)", example = "https://www.crunchyroll.com/series/...")
+    private String affiliateUrl;
+
+    @OneToMany(mappedBy = "anime", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    private List<Review> reviews = new ArrayList<>();
+
+    @OneToMany(mappedBy = "anime", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    private List<Watchlist> watchlistEntries = new ArrayList<>();
+
+    @OneToMany(mappedBy = "anime", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    private List<Favorites> favorites = new ArrayList<>();
+}

@@ -1,0 +1,263 @@
+### ===== PUBLIC ANIME ENDPOINTS =====
+
+### 1. Get Trending Anime
+GET http://localhost:8080/api/anime/trending?page=0&size=5
+
+### 2. Search Anime by Name
+GET http://localhost:8080/api/anime/search?q=Naruto&page=0&size=5
+
+### 3. Search with Empty Query (should return 400)
+GET http://localhost:8080/api/anime/search?q=
+
+### 4. Get Anime by MAL ID
+GET http://localhost:8080/api/anime/21
+
+### 5. Get Anime by Invalid ID (should return 500)
+GET http://localhost:8080/api/anime/99999999
+
+### 6. Get Seasonal Anime
+GET http://localhost:8080/api/anime/seasonal?page=0&size=5
+
+### 7. Filter Anime by Genre
+GET http://localhost:8080/api/anime/filter?genres=1,2&order_by=score&sort=desc&page=0&size=5
+
+
+### ===== AUTH ENDPOINTS =====
+
+### 8. Register a New User
+POST http://localhost:8080/api/auth/register
+Content-Type: application/json
+
+{
+    "name": "Test User",
+    "email": "testuser@example.com",
+    "password": "password123"
+}
+
+### 9. Resend Verification Email
+POST http://localhost:8080/api/auth/resend-verification
+Content-Type: application/json
+
+{
+    "email": "testuser@example.com"
+}
+
+### 10. Verify Email (copy token from DB/logs and replace below)
+GET http://localhost:8080/api/auth/verify?token=REPLACE_WITH_ACTUAL_TOKEN
+
+### 11. Login as User
+# @name userLogin
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{
+    "email": "testuser@example.com",
+    "password": "password123"
+}
+
+### 12. Login as Admin
+# @name adminLogin
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{
+    "email": "admin@animesite.com",
+    "password": "admin123"
+}
+
+### 13. Refresh Token
+POST http://localhost:8080/api/auth/refresh
+Content-Type: application/json
+
+{
+    "refreshToken": "REPLACE_WITH_REFRESH_TOKEN"
+}
+
+### 14. Logout
+POST http://localhost:8080/api/auth/logout
+Content-Type: application/json
+
+{
+    "refreshToken": "REPLACE_WITH_REFRESH_TOKEN"
+}
+
+### 15. Forgot Password
+POST http://localhost:8080/api/auth/forgot-password
+Content-Type: application/json
+
+{
+    "email": "testuser@example.com"
+}
+
+### 16. Reset Password
+POST http://localhost:8080/api/auth/reset-password
+Content-Type: application/json
+
+{
+    "token": "REPLACE_WITH_RESET_TOKEN",
+    "newPassword": "newPassword456"
+}
+
+
+### ===== USER PROFILE =====
+
+### 17. Get My Profile
+GET http://localhost:8080/api/user/me
+Authorization: Bearer {{userToken}}
+
+### 18. Update Profile
+PUT http://localhost:8080/api/user/me
+Content-Type: application/json
+Authorization: Bearer {{userToken}}
+
+{
+    "name": "Updated Name"
+}
+
+### 19. Change Password
+PUT http://localhost:8080/api/user/me/password
+Content-Type: application/json
+Authorization: Bearer {{userToken}}
+
+{
+    "currentPassword": "password123",
+    "newPassword": "newPassword456"
+}
+
+### 20. Delete Account
+DELETE http://localhost:8080/api/user/me
+Authorization: Bearer {{userToken}}
+
+
+### ===== REVIEWS =====
+
+### 21. Add Review (replace ANIME_ID, e.g. 21)
+POST http://localhost:8080/api/anime/21/review
+Content-Type: application/json
+Authorization: Bearer {{userToken}}
+
+{
+    "starRating": 5,
+    "comment": "Amazing anime! Highly recommend."
+}
+
+### 22. Get Reviews for an Anime (public)
+GET http://localhost:8080/api/anime/21/reviews?page=0&size=10
+
+### 23. Edit Review (replace REVIEW_ID)
+PUT http://localhost:8080/api/reviews/1
+Content-Type: application/json
+Authorization: Bearer {{userToken}}
+
+{
+    "starRating": 4,
+    "comment": "Updated review comment."
+}
+
+### 24. Delete Own Review (replace REVIEW_ID)
+DELETE http://localhost:8080/api/reviews/1
+Authorization: Bearer {{userToken}}
+
+
+### ===== WATCHLIST =====
+
+### 25. Add to Watchlist
+POST http://localhost:8080/api/watchlist
+Content-Type: application/json
+Authorization: Bearer {{userToken}}
+
+{
+    "animeId": 1,
+    "status": "PLAN_TO_WATCH"
+}
+
+### 26. Get My Watchlist
+GET http://localhost:8080/api/watchlist
+Authorization: Bearer {{userToken}}
+
+### 27. Update Watchlist Status (replace WATCHLIST_ID)
+PUT http://localhost:8080/api/watchlist/1
+Content-Type: application/json
+Authorization: Bearer {{userToken}}
+
+{
+    "status": "WATCHING"
+}
+
+### 28. Remove from Watchlist (replace WATCHLIST_ID)
+DELETE http://localhost:8080/api/watchlist/1
+Authorization: Bearer {{userToken}}
+
+
+### ===== FAVORITES =====
+
+### 29. Add to Favorites
+POST http://localhost:8080/api/favorites/21
+Authorization: Bearer {{userToken}}
+
+### 30. Get My Favorites
+GET http://localhost:8080/api/favorites
+Authorization: Bearer {{userToken}}
+
+### 31. Remove from Favorites
+DELETE http://localhost:8080/api/favorites/21
+Authorization: Bearer {{userToken}}
+
+
+### ===== ADMIN ENDPOINTS =====
+
+### 32. List All Users
+GET http://localhost:8080/api/admin/users
+Authorization: Bearer {{adminToken}}
+
+### 33. Delete User (replace USER_ID)
+DELETE http://localhost:8080/api/admin/users/2
+Authorization: Bearer {{adminToken}}
+
+### 34. Set Affiliate URL
+PUT http://localhost:8080/api/admin/anime/1/affiliate
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+    "affiliateUrl": "https://www.crunchyroll.com/series/..."
+}
+
+### 35. Delete Anime (cascades reviews/watchlist/favorites)
+DELETE http://localhost:8080/api/admin/anime/1
+Authorization: Bearer {{adminToken}}
+
+### 36. Delete Any Review (replace REVIEW_ID)
+DELETE http://localhost:8080/api/admin/review/1
+Authorization: Bearer {{adminToken}}
+
+
+### ===== NEWS =====
+
+### 37. Get All News (public)
+GET http://localhost:8080/api/news?page=0&size=10
+
+### 38. Create News Article (admin)
+POST http://localhost:8080/api/news
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+    "title": "New Anime Season Announced",
+    "content": "Exciting new anime series for the upcoming season...",
+    "imageUrl": "https://example.com/image.jpg"
+}
+
+### 39. Update News (admin, replace NEWS_ID)
+PUT http://localhost:8080/api/news/1
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+    "title": "Updated Title",
+    "content": "Updated content..."
+}
+
+### 40. Delete News (admin, replace NEWS_ID)
+DELETE http://localhost:8080/api/news/1
+Authorization: Bearer {{adminToken}}

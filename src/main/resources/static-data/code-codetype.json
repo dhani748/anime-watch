@@ -1,0 +1,19 @@
+[
+  {
+    "codeType": "ROLE",
+    "description": "User Roles",
+    "values": [
+      { "code": "ROLE_USER", "description": "Standard user" },
+      { "code": "ROLE_ADMIN", "description": "Administrator" }
+    ]
+  },
+  {
+    "codeType": "WATCHLIST_STATUS",
+    "description": "Watchlist Statuses",
+    "values": [
+      { "code": "WATCHING", "description": "Currently watching" },
+      { "code": "COMPLETED", "description": "Finished watching" },
+      { "code": "PLAN_TO_WATCH", "description": "Plan to watch" }
+    ]
+  }
+]
