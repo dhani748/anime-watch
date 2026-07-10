@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -23,17 +24,17 @@ import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.HttpServerErrorException;
 
 @Service
-public class AninekoService {
+public class AnimeGogoService {
 
-    private static final Logger log = LoggerFactory.getLogger(AninekoService.class);
-    private static final String BASE_URL = "https://anineko.to";
-
+    private static final Logger log = LoggerFactory.getLogger(AnimeGogoService.class);
+    private static final String BASE_URL = "https://gogoanime.live";
+    private static final String EPISODE_PATTERN_TEMPLATE = "/episode/%s-episode-(\\d+)";
     private static final String JIKAN_BASE = "https://api.jikan.moe/v4";
 
     private final RestTemplate restTemplate;
     private final ObjectMapper objectMapper;
 
-    public AninekoService(@Qualifier("aninekoRestTemplate") RestTemplate restTemplate, ObjectMapper objectMapper) {
+    public AnimeGogoService(@Qualifier("aninekoRestTemplate") RestTemplate restTemplate, ObjectMapper objectMapper) {
         this.restTemplate = restTemplate;
         this.objectMapper = objectMapper;
     }
@@ -50,7 +51,6 @@ public class AninekoService {
 
     public List<String> buildSlugs(String title) {
         Set<String> slugs = new LinkedHashSet<>();
-
         String primary = buildSlug(title);
         slugs.add(primary);
 
@@ -91,43 +91,43 @@ public class AninekoService {
             String body = resp.getBody();
             long elapsed = System.currentTimeMillis() - t;
             if (body != null) {
-                log.info("[ANINEKO] {} | url={} status={} bodyLength={} preview='{}' duration={}ms",
+                log.info("[GOGO] {} | url={} status={} bodyLength={} preview='{}' duration={}ms",
                     context, url, status, body.length(),
                     body.substring(0, Math.min(300, body.length())).replace('\n', ' ').replace('\r', ' '),
                     elapsed);
             } else {
-                log.warn("[ANINEKO] {} | url={} status={} body=null duration={}ms", context, url, status, elapsed);
+                log.warn("[GOGO] {} | url={} status={} body=null duration={}ms", context, url, status, elapsed);
             }
             return body;
         } catch (HttpClientErrorException e) {
             long elapsed = System.currentTimeMillis() - t;
             String respBody = e.getResponseBodyAsString();
-            log.warn("[ANINEKO] {} FAILED | url={} status={} body='{}' duration={}ms",
+            log.warn("[GOGO] {} FAILED | url={} status={} body='{}' duration={}ms",
                 context, url, e.getStatusCode(),
                 respBody != null ? respBody.substring(0, Math.min(200, respBody.length())).replace('\n', ' ').replace('\r', ' ') : "null",
                 elapsed);
             return null;
         } catch (HttpServerErrorException e) {
             long elapsed = System.currentTimeMillis() - t;
-            log.warn("[ANINEKO] {} FAILED | url={} status={} duration={}ms", context, url, e.getStatusCode(), elapsed);
+            log.warn("[GOGO] {} FAILED | url={} status={} duration={}ms", context, url, e.getStatusCode(), elapsed);
             return null;
         } catch (Exception e) {
             long elapsed = System.currentTimeMillis() - t;
-            log.warn("[ANINEKO] {} FAILED | url={} error='{}' duration={}ms", context, url, e.getMessage(), elapsed);
+            log.warn("[GOGO] {} FAILED | url={} error='{}' duration={}ms", context, url, e.getMessage(), elapsed);
             return null;
         }
     }
 
     public List<Episode> fetchEpisodes(int malId, String title) {
         long start = System.currentTimeMillis();
-        log.info("[ANINEKO] FETCH EPISODES | title='{}' malId={}", title, malId);
+        log.info("[GOGO] FETCH EPISODES | title='{}' malId={}", title, malId);
 
         List<String> slugs = buildSlugs(title);
-        log.info("[ANINEKO] SLUGS | '{}' → {}", title, slugs);
+        log.info("[GOGO] SLUGS | '{}' → {}", title, slugs);
 
         for (String slug : slugs) {
-            String url = BASE_URL + "/watch/" + slug;
-            log.info("[ANINEKO] TRY SLUG | slug='{}' url={}", slug, url);
+            String url = BASE_URL + "/anime/" + slug;
+            log.info("[GOGO] TRY SLUG | slug='{}' url={}", slug, url);
 
             String html = fetchWithLogging(url, "SLUG=" + slug);
             if (html == null) continue;
@@ -135,7 +135,7 @@ public class AninekoService {
             List<Episode> episodes = new ArrayList<>();
             Set<Integer> seen = new LinkedHashSet<>();
 
-            Pattern epPattern = Pattern.compile("/watch/" + Pattern.quote(slug) + "/ep-(\\d+)");
+            Pattern epPattern = Pattern.compile(String.format(EPISODE_PATTERN_TEMPLATE, Pattern.quote(slug)));
             Matcher matcher = epPattern.matcher(html);
             while (matcher.find()) {
                 int epNum = Integer.parseInt(matcher.group(1));
@@ -144,7 +144,7 @@ public class AninekoService {
                     ep.setAnimeMalId(malId);
                     ep.setEpisodeNumber(epNum);
                     ep.setTitle("Episode " + epNum);
-                    ep.setEmbedUrl(BASE_URL + "/watch/" + slug + "/ep-" + epNum);
+                    ep.setEmbedUrl(BASE_URL + "/episode/" + slug + "-episode-" + epNum);
                     episodes.add(ep);
                 }
             }
@@ -152,38 +152,38 @@ public class AninekoService {
             if (!episodes.isEmpty()) {
                 episodes.sort(Comparator.comparingInt(Episode::getEpisodeNumber));
                 long elapsed = System.currentTimeMillis() - start;
-                log.info("[ANINEKO] SUCCESS | slug='{}' count={} duration={}ms", slug, episodes.size(), elapsed);
+                log.info("[GOGO] SUCCESS | slug='{}' count={} duration={}ms", slug, episodes.size(), elapsed);
                 return episodes;
             }
 
-            long epMatchCount = Pattern.compile("/watch/[a-z0-9-]+/ep-\\d+").matcher(html).results().count();
-            log.warn("[ANINEKO] EMPTY | slug='{}' matched no episodes (body had {} ep links)", slug, epMatchCount);
+            long epMatchCount = Pattern.compile("/episode/[a-z0-9-]+-episode-\\d+").matcher(html).results().count();
+            log.warn("[GOGO] EMPTY | slug='{}' matched no episodes (body had {} ep links)", slug, epMatchCount);
         }
 
-        log.warn("[ANINEKO] ALL SLUGS FAILED | trying search-based slug discovery...");
+        log.warn("[GOGO] ALL SLUGS FAILED | trying search-based slug discovery...");
 
         String searchSlug = findSlugBySearch(title);
         if (searchSlug != null) {
-            log.info("[ANINEKO] SEARCH FOUND SLUG | '{}' → '{}'", title, searchSlug);
+            log.info("[GOGO] SEARCH FOUND SLUG | '{}' → '{}'", title, searchSlug);
             List<Episode> searchResult = fetchEpisodesFromList(malId, List.of(searchSlug));
             if (!searchResult.isEmpty()) {
                 long elapsed = System.currentTimeMillis() - start;
-                log.info("[ANINEKO] SEARCH SLUG SUCCESS | count={} duration={}ms", searchResult.size(), elapsed);
+                log.info("[GOGO] SEARCH SLUG SUCCESS | count={} duration={}ms", searchResult.size(), elapsed);
                 return searchResult;
             }
         }
 
-        log.warn("[ANINEKO] ALL SLUGS FAILED | trying Jikan API for English title...");
+        log.warn("[GOGO] ALL SLUGS FAILED | trying Jikan API for English title...");
 
         List<Episode> jikanResult = tryJikanEnglishTitle(malId, title);
         if (!jikanResult.isEmpty()) {
             long elapsed = System.currentTimeMillis() - start;
-            log.info("[ANINEKO] JIKAN FALLBACK SUCCESS | count={} duration={}ms", jikanResult.size(), elapsed);
+            log.info("[GOGO] JIKAN FALLBACK SUCCESS | count={} duration={}ms", jikanResult.size(), elapsed);
             return jikanResult;
         }
 
         long elapsed = System.currentTimeMillis() - start;
-        log.warn("[ANINEKO] ALL ATTEMPTS FAILED | duration={}ms", elapsed);
+        log.warn("[GOGO] ALL ATTEMPTS FAILED | duration={}ms", elapsed);
         return List.of();
     }
 
@@ -201,7 +201,7 @@ public class AninekoService {
             if (data.has("title_english") && !data.get("title_english").isNull()) {
                 String englishTitle = data.get("title_english").asText("");
                 if (!englishTitle.isEmpty()) {
-                    log.info("[ANINEKO] JIKAN ENGLISH TITLE | '{}' → '{}'", title, englishTitle);
+                    log.info("[GOGO] JIKAN ENGLISH TITLE | '{}' → '{}'", title, englishTitle);
                     return fetchEpisodesFromList(malId, buildSlugs(englishTitle));
                 }
             }
@@ -213,7 +213,7 @@ public class AninekoService {
                     if ("English".equals(type)) {
                         String enTitle = t.get("title").asText("");
                         if (!enTitle.isEmpty()) {
-                            log.info("[ANINEKO] JIKAN ENGLISH TITLE (from titles) | '{}' → '{}'", title, enTitle);
+                            log.info("[GOGO] JIKAN ENGLISH TITLE (from titles) | '{}' → '{}'", title, enTitle);
                             return fetchEpisodesFromList(malId, buildSlugs(enTitle));
                         }
                     }
@@ -222,20 +222,20 @@ public class AninekoService {
 
             return List.of();
         } catch (Exception e) {
-            log.warn("[ANINEKO] JIKAN FALLBACK FAILED | error='{}'", e.getMessage());
+            log.warn("[GOGO] JIKAN FALLBACK FAILED | error='{}'", e.getMessage());
             return List.of();
         }
     }
 
     private List<Episode> fetchEpisodesFromList(int malId, List<String> slugs) {
         for (String slug : slugs) {
-            String url = BASE_URL + "/watch/" + slug;
+            String url = BASE_URL + "/anime/" + slug;
             String html = fetchWithLogging(url, "FALLBACK_SLUG=" + slug);
             if (html == null) continue;
 
             List<Episode> episodes = new ArrayList<>();
             Set<Integer> seen = new LinkedHashSet<>();
-            Pattern epPattern = Pattern.compile("/watch/" + Pattern.quote(slug) + "/ep-(\\d+)");
+            Pattern epPattern = Pattern.compile(String.format(EPISODE_PATTERN_TEMPLATE, Pattern.quote(slug)));
             Matcher matcher = epPattern.matcher(html);
             while (matcher.find()) {
                 int epNum = Integer.parseInt(matcher.group(1));
@@ -244,7 +244,7 @@ public class AninekoService {
                     ep.setAnimeMalId(malId);
                     ep.setEpisodeNumber(epNum);
                     ep.setTitle("Episode " + epNum);
-                    ep.setEmbedUrl(BASE_URL + "/watch/" + slug + "/ep-" + epNum);
+                    ep.setEmbedUrl(BASE_URL + "/episode/" + slug + "-episode-" + epNum);
                     episodes.add(ep);
                 }
             }
@@ -259,13 +259,13 @@ public class AninekoService {
     private String findSlugBySearch(String title) {
         try {
             String keywords = title.toLowerCase().replaceAll("[^a-z0-9 ]", " ").trim().replaceAll("\\s+", "+");
-            String searchUrl = BASE_URL + "/browse?keyword=" + keywords + "&page=1";
-            log.info("[ANINEKO] SEARCH | url={}", searchUrl);
+            String searchUrl = BASE_URL + "/search?keyword=" + keywords + "&page=1";
+            log.info("[GOGO] SEARCH | url={}", searchUrl);
             String html = fetchWithLogging(searchUrl, "SEARCH");
             if (html == null) return null;
 
             Set<String> candidates = new LinkedHashSet<>();
-            Pattern linkPattern = Pattern.compile("/watch/([a-z0-9-]+)");
+            Pattern linkPattern = Pattern.compile("/anime/([a-z0-9-]+)");
             Matcher matcher = linkPattern.matcher(html);
 
             String titleLower = title.toLowerCase();
@@ -273,8 +273,18 @@ public class AninekoService {
 
             while (matcher.find()) {
                 String slug = matcher.group(1);
-                if (slug.startsWith(slugPrefix) && !slug.equals(slugPrefix)) {
+                if (slug.startsWith(slugPrefix) && !slug.equals(slugPrefix) && !slug.endsWith("-dub")) {
                     candidates.add(slug);
+                }
+            }
+
+            if (candidates.isEmpty()) {
+                matcher.reset();
+                while (matcher.find()) {
+                    String slug = matcher.group(1);
+                    if (slug.startsWith(slugPrefix) && !slug.endsWith("-dub")) {
+                        candidates.add(slug);
+                    }
                 }
             }
 
@@ -288,22 +298,22 @@ public class AninekoService {
                 }
             }
 
-            log.info("[ANINEKO] SEARCH RESULT | candidates={}", candidates);
+            log.info("[GOGO] SEARCH RESULT | candidates={}", candidates);
             return candidates.isEmpty() ? null : candidates.iterator().next();
         } catch (Exception e) {
-            log.warn("[ANINEKO] SEARCH FAILED | error='{}'", e.getMessage());
+            log.warn("[GOGO] SEARCH FAILED | error='{}'", e.getMessage());
             return null;
         }
     }
 
     public String fetchEmbedUrl(String episodePageUrl) {
         long start = System.currentTimeMillis();
-        log.info("[ANINEKO] FETCH EMBED | url={}", episodePageUrl);
+        log.info("[GOGO] FETCH EMBED | url={}", episodePageUrl);
 
         try {
             String html = fetchWithLogging(episodePageUrl, "EMBED");
             if (html == null) {
-                log.error("[ANINEKO] EMBED FAILED | null response after fetch");
+                log.error("[GOGO] EMBED FAILED | null response after fetch");
                 return null;
             }
 
@@ -311,58 +321,64 @@ public class AninekoService {
             Matcher matcher = pattern.matcher(html);
             List<String> embeds = new ArrayList<>();
             while (matcher.find()) {
-                String videoUrl = matcher.group(1);
-                if (!embeds.contains(videoUrl)) {
-                    embeds.add(videoUrl);
+                String encoded = matcher.group(1);
+                if (!embeds.contains(encoded)) {
+                    embeds.add(encoded);
                 }
             }
 
             if (embeds.isEmpty()) {
-                log.warn("[ANINEKO] EMBED FAILED | no data-video found");
+                log.warn("[GOGO] EMBED FAILED | no data-video found");
                 return null;
             }
 
-            String embedPageUrl = embeds.get(0);
-            log.info("[ANINEKO] EMBED PAGE | url={}", embedPageUrl);
+            String firstEncoded = embeds.get(0);
+            String decodedUrl;
+            try {
+                decodedUrl = new String(Base64.getDecoder().decode(firstEncoded));
+            } catch (Exception e) {
+                log.warn("[GOGO] EMBED FAILED | base64 decode error: {}", e.getMessage());
+                return null;
+            }
 
-            if (embedPageUrl.contains("vivibebe.site")) {
-                String directVideo = extractVivibebeDirectUrl(embedPageUrl);
-                if (directVideo != null) {
-                    long elapsed = System.currentTimeMillis() - start;
-                    log.info("[ANINEKO] DIRECT VIDEO FOUND | url={} duration={}ms", directVideo, elapsed);
-                    return directVideo;
-                }
+            log.info("[GOGO] DECODED PLAYER URL | url={}", decodedUrl);
+
+            String megaplayUrl = extractMegaplayIframeUrl(decodedUrl);
+            if (megaplayUrl != null) {
+                long elapsed = System.currentTimeMillis() - start;
+                log.info("[GOGO] MEGAPLAY URL | url={} duration={}ms", megaplayUrl, elapsed);
+                return megaplayUrl;
             }
 
             long elapsed = System.currentTimeMillis() - start;
-            log.info("[ANINEKO] EMBED FALLBACK | returning embed page url={} duration={}ms", embedPageUrl, elapsed);
-            return embedPageUrl;
+            log.info("[GOGO] EMBED FALLBACK | returning newplayer url={} duration={}ms", decodedUrl, elapsed);
+            return decodedUrl;
 
         } catch (Exception e) {
             long elapsed = System.currentTimeMillis() - start;
-            log.error("[ANINEKO] EMBED FAILED | error='{}' duration={}ms", e.getMessage(), elapsed);
+            log.error("[GOGO] EMBED FAILED | error='{}' duration={}ms", e.getMessage(), elapsed);
             return null;
         }
     }
 
-    private String extractVivibebeDirectUrl(String embedPageUrl) {
+    private String extractMegaplayIframeUrl(String playerPageUrl) {
         try {
-            log.info("[ANINEKO] EXTRACT VIVIBEBE | url={}", embedPageUrl);
-            String html = fetchWithLogging(embedPageUrl, "VIVIBEBE_EMBED");
+            log.info("[GOGO] EXTRACT MEGAPLAY | url={}", playerPageUrl);
+            String html = fetchWithLogging(playerPageUrl, "MEGAPLAY_IFRAME");
             if (html == null) return null;
 
-            Pattern srcPattern = Pattern.compile("const\\s+src\\s*=\\s*\"([^\"]+\\.m3u8[^\"]*)\"");
-            Matcher matcher = srcPattern.matcher(html);
+            Pattern iframePattern = Pattern.compile("<iframe\\s+[^>]*src=\"([^\"]+megaplay[^\"]+)\"");
+            Matcher matcher = iframePattern.matcher(html);
             if (matcher.find()) {
-                String directUrl = matcher.group(1);
-                log.info("[ANINEKO] VIVIBEBE DIRECT HLS | url={}", directUrl);
-                return directUrl;
+                String iframeUrl = matcher.group(1);
+                log.info("[GOGO] MEGAPLAY IFRAME | url={}", iframeUrl);
+                return iframeUrl;
             }
 
-            log.warn("[ANINEKO] VIVIBEBE EXTRACT FAILED | no HLS source found");
+            log.warn("[GOGO] MEGAPLAY EXTRACT FAILED | no megaplay iframe found");
             return null;
         } catch (Exception e) {
-            log.warn("[ANINEKO] VIVIBEBE EXTRACT ERROR | error='{}'", e.getMessage());
+            log.warn("[GOGO] MEGAPLAY EXTRACT ERROR | error='{}'", e.getMessage());
             return null;
         }
     }
